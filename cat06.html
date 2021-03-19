@@ -1,0 +1,266 @@
+<html>
+<body>
+  <h1 class="info">Cat Wars</h1>
+  <h2 class="info">Player 1: W to accelerate, A/D to turn <br>Player 2: I to accelerate, J/L to turn</h2>
+  <div id="view" class="view"></div>
+  <div class="info" id="playerScore0">Player 1: 0</div>
+  <div class="info" id="playerScore1">Player 2: 0</div>
+  <button class="info" onclick="addPenguin()">Add Penguin</button>
+  <button class="info" onclick="addFood()">Add Food</button>
+</body>
+<script>
+var keysDown = {}
+
+var keyDownHandler = function(event) {
+	var keyPressed = String.fromCharCode(event.keyCode);
+	keysDown[keyPressed] = true
+}
+var keyUpHandler = function(event) {
+	var keyReleased = String.fromCharCode(event.keyCode);
+	delete keysDown[keyReleased]
+}
+
+document.addEventListener("keydown", keyDownHandler, false);	
+document.addEventListener("keyup", keyUpHandler, false);	
+
+var updateInterval = 50
+
+var scoreUpdateInterval = 1000
+
+var halfSprite = 15
+
+var viewWidth = 1200
+var viewHeight = 500
+
+var viewEl = document.getElementById("view")
+viewEl.style.width = viewWidth + "px"
+viewEl.style.height = viewHeight + "px"
+
+var makeActor = function(pos, type, html, addScore) {
+	var addScoreOrig = addScore
+
+	var actorEl = document.createElement("div")
+	actorEl.className = "sprite actor " + type
+	actorEl.innerHTML = html
+	viewEl.appendChild(actorEl)
+
+	var handlePlayerTouch = function(player) {
+		var playerNum = player.id + 1
+		if ((Math.abs(player.x - pos.x) < halfSprite) &&
+			(Math.abs(player.y - pos.y) < halfSprite)) {
+			if (type == "food" || type == "super food") {
+				if (actorEl != null && actorEl.parentNode != null) {
+					actorEl.parentNode.removeChild(actorEl);
+					player.score = player.score + addScore
+					player.scoreEl.innerHTML = "Player " + playerNum + ": " + player.score
+
+					player.el.innerHTML = player.faces.happy
+
+					setTimeout(function() {
+						player.el.innerHTML = player.faces.normal
+					}, 2000)
+					
+					if (type == "super food") {
+						player.dx = player.dx * 2
+						player.dy = player.dy * 2
+					}
+				}
+			}
+			if (type == "enemy") {
+				player.score = player.score + addScore
+				player.scoreEl.innerHTML =  "Player " + playerNum  + ": " +player.score
+
+				if (addScore != 0) {
+					addScore = 0
+					player.el.innerHTML = player.faces.sad
+
+					setTimeout(function() {
+						addScore = addScoreOrig
+						player.el.innerHTML = player.faces.normal
+					}, 2000)
+				}
+			}
+		}
+	}
+
+	var moveActor = function() {	
+		pos.x = pos.x + pos.dx
+		pos.y = pos.y + pos.dy
+
+		moveSprite(actorEl, pos)
+
+		for (var i = 0; i < players.length; i++) {
+			var player = players[i]
+			handlePlayerTouch(player)
+		}
+	}
+
+	var interval = setInterval(moveActor, updateInterval)
+}
+
+var makePlayer = function(playerId, playerKeys) {
+	var faces = {
+		"normal": "&#x1f431;",
+		"happy": "&#x1f63a;",
+		"sad": "&#x1f63f;"
+	}
+
+	var playerEl = document.createElement("div")
+	playerEl.className = "sprite player"
+	playerEl.innerHTML = faces.normal
+	playerEl.id = "player" + playerId
+	viewEl.appendChild(playerEl)
+
+	var scoreEl = document.getElementById("playerScore" + playerId)
+
+	var player = {
+		x: viewWidth / 2,
+		y: viewHeight / 2,
+		dx: 0,
+		dy: 0,
+		el: playerEl,
+		id: playerId,
+		speed: 5,
+		score: 0,
+		scoreEl: scoreEl,
+		faces: faces,
+		rotation: 0,
+	}
+
+	var movePlayer = function() {
+		if (keysDown[playerKeys.cw]) {
+			player.rotation = player.rotation + 0.1
+		}
+		if (keysDown[playerKeys.ccw]) {
+			player.rotation = player.rotation - 0.1
+		}
+		if (keysDown[playerKeys.thrust]) {
+			var speed = 0.1
+			player.dx = player.dx + speed * Math.sin(player.rotation)
+			player.dy = player.dy - speed * Math.cos(player.rotation)
+		}
+
+		player.x = player.x + player.dx
+		player.y = player.y + player.dy
+
+		moveSprite(playerEl, player)
+	}
+
+	setInterval(movePlayer, updateInterval)
+
+	return player
+}
+
+var moveSprite = function(spriteEl, pos) {
+	if (pos.x < 0) {
+		pos.x = viewWidth
+	}
+	if (pos.x > viewWidth) {
+		pos.x = 0
+	}
+	if (pos.y < 0) {
+		pos.y = viewHeight
+	}
+	if (pos.y > viewHeight) {
+		pos.y = 0
+	}
+
+	var top = pos.y - halfSprite
+	var left = pos.x - halfSprite
+
+	spriteEl.style.top = top + "px"
+	spriteEl.style.left = left + "px"
+	spriteEl.style.transform = "rotate(" + pos.rotation + "rad)"
+}
+
+var addPenguin = function() {
+	addActor("enemy", "&#x1f427;", -1)
+}
+
+var addFish = function() {
+	addActor("food", "&#x1f41f;", 1)
+}
+
+var addMilk = function() {
+	addActor("food", "&#x1f95b;", 2)
+}
+
+var addActor = function(type, html, addScore) {
+	var pos = {
+		x: Math.round(Math.random() * viewWidth),
+		y: Math.round(Math.random() * viewHeight),
+		dx: Math.round(Math.random() * 5) - 2.5,
+		dy: Math.round(Math.random() * 5) - 2.5
+	}
+
+	makeActor(pos, type, html, addScore)
+}
+
+var addFood = function() {
+	var r = Math.random()
+	if (r > 0.2) {
+		addFish()
+	} else {
+		addMilk()
+	}
+}
+
+var addSuperFood = function() {
+	var r = Math.random()
+	if (r > 0.9) {
+		addActor("super food", "&#127775;", 3)
+	}
+}
+
+setInterval(addSuperFood, 1000)
+
+var players = []
+
+var player0 = makePlayer(0, {
+		thrust: "W",
+		ccw: "A",
+		cw: "D"
+	});
+players.push(player0)
+
+var player1 = makePlayer(1, {
+		thrust: "I",
+		ccw: "J",
+		cw: "L"
+	});
+players.push(player1)
+
+
+var i = 0
+while (i < 10) {
+	var r = Math.random()
+	if (r > 0.5) {
+		addPenguin()
+	} else if (r > 0.1) {
+		addFish()
+	} else {
+		addMilk()
+	}
+
+	i = i + 1
+}
+</script>
+<style>
+div.view {
+	position: relative;
+	border: 5px solid orange;
+}
+div.sprite {
+	font-size: 30px;
+}
+div.player {
+	position: absolute;
+}
+div.actor {
+	position: absolute;
+}
+.info {
+	font-family: Monaco, monospace;
+}
+</style>
+</html>
